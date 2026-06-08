@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="style.css">
+  <title>E-Commerce Shop</title>
+</head>
+<body>
+  <nav>
+    <a href="index.html"><h1>My Shop</h1></a>
+    <div>
+      <span id="user-display"></span>
+      <a href="cart.html">Cart</a>
+      <a href="auth.html" id="auth-link">Login</a>
+    </div>
+  </nav>
+  <div class="container">
+    <h2>Our Products</h2><br>
+    <div class="grid" id="products-grid"></div>
+  </div>
+
+  <script>
+    document.getElementById('user-display').innerText = localStorage.getItem('user') ? `Hello, ${localStorage.getItem('user')}` : '';
+    if(localStorage.getItem('user')) document.getElementById('auth-link').innerText = 'Logout';
+    
+    document.getElementById('auth-link').addEventListener('click', (e) => {
+      if(localStorage.getItem('user')) {
+        localStorage.removeItem('user');
+        window.location.reload();
+      }
+    });
+
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(products => {
+        const grid = document.getElementById('products-grid');
+        grid.innerHTML = products.map(p => `
+          <div class="card">
+            <img src="${p.image}" alt="${p.name}">
+            <h3>${p.name}</h3>
+            <p>$${p.price.toFixed(2)}</p>
+            <button onclick="window.location.href='product.html?id=${p.id}'">View Details</button>
+          </div>
+        `).join('');
+      });
+  </script>
+</body>
+</html>
