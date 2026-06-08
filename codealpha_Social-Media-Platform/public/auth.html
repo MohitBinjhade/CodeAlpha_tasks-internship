@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="style.css">
+  <title>Login / Sign Up</title>
+</head>
+<body>
+  <nav><a href="index.html" class="logo">Instagram</a></nav>
+  <div class="container" style="max-width: 350px; margin-top: 80px;">
+    <div class="card" style="padding: 30px;">
+      <h2 id="title" style="text-align: center; font-family: 'Georgia', serif; font-size: 2rem; margin-bottom: 20px;">Instagram</h2>
+      <form id="auth-form">
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button type="submit" id="btn" style="width: 100%; margin-top: 10px;">Log In</button>
+      </form>
+      <p style="text-align:center; margin-top:20px; font-size:0.85em;">
+        <a href="#" id="toggle" style="color:#0095f6; text-decoration:none; font-weight:600;">Don't have an account? Sign up</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    let isLoginMode = true;
+    const toggleLink = document.getElementById('toggle');
+    const submitBtn = document.getElementById('btn');
+    const formTitle = document.getElementById('title');
+
+    function switchToLogin() {
+      isLoginMode = true;
+      submitBtn.innerText = 'Log In';
+      toggleLink.innerText = "Don't have an account? Sign up";
+    }
+
+    toggleLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      isLoginMode = !isLoginMode;
+      submitBtn.innerText = isLoginMode ? 'Log In' : 'Sign Up';
+      toggleLink.innerText = isLoginMode ? "Don't have an account? Sign up" : "Have an account? Log in";
+    });
+
+    document.getElementById('auth-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const route = isLoginMode ? '/api/login' : '/api/register';
+
+      fetch(route, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ username, password })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          if (isLoginMode) {
+            localStorage.setItem('social_user', data.username);
+            window.location.href = 'index.html';
+          } else {
+            // SUCCESS REDIRECTION SYSTEM IN ACTION:
+            alert('Registration Complete! Redirecting to login view...');
+            switchToLogin();
+            document.getElementById('password').value = ''; // Clean field for entry
+          }
+        } else {
+          alert(data.message);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

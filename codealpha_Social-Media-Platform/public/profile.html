@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="style.css">
+  <title>Profile</title>
+</head>
+<body>
+  <nav><a href="index.html" class="logo">Instagram</a> <a href="index.html">Home Feed</a></nav>
+
+  <div class="container" style="max-width: 600px; margin-top: 40px;">
+    <div class="card" style="text-align: center; border-color:#262626;">
+      <div class="avatar" style="width: 76px; height: 76px; margin-bottom: 15px;"></div>
+      <h2 id="prof-username" style="margin-bottom: 5px;">@username</h2>
+      <p id="prof-bio" style="color:#8e8e8e; margin-bottom: 20px; font-size: 0.95rem;"></p>
+      
+      <div style="display:flex; justify-content:center; gap:40px; margin-bottom:20px; border-top: 1px solid #262626; border-bottom: 1px solid #262626; padding: 12px 0;">
+        <div><strong id="followers-count" style="color:#fff;">0</strong> followers</div>
+        <div><strong id="following-count" style="color:#fff;">0</strong> following</div>
+      </div>
+      
+      <button id="follow-btn" style="display:none; width: 50%;" onclick="toggleFollow()"></button>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetUser = urlParams.get('user');
+    const authUser = localStorage.getItem('social_user');
+
+    function loadProfile() {
+      fetch(`/api/users/${targetUser}`)
+        .then(res => res.json())
+        .then(user => {
+          document.getElementById('prof-username').innerText = `${user.username}`;
+          document.getElementById('prof-bio').innerText = user.bio;
+          document.getElementById('followers-count').innerText = user.followersCount;
+          document.getElementById('following-count').innerText = user.followingCount;
+
+          if (authUser && authUser !== targetUser) {
+            const btn = document.getElementById('follow-btn');
+            btn.style.display = 'inline-block';
+            
+            fetch(`/api/is-following?follower=${authUser}&following=${targetUser}`)
+              .then(res => res.json())
+              .then(data => {
+                btn.innerText = data.isFollowing ? 'Unfollow' : 'Follow';
+                btn.className = data.isFollowing ? 'alt' : '';
+              });
+          }
+        });
+    }
+
+    function toggleFollow() {
+      fetch('/api/follow', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ follower: authUser, following: targetUser })
+      }).then(loadProfile);
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>

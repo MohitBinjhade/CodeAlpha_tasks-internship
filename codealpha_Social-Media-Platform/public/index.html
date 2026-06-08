@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="style.css">
+  <title>Instagram</title>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="logo">Instagram</a>
+    
+    <div class="search-container">
+      <input type="text" id="search-bar" placeholder="🔍 Search users..." 
+             onfocus="showInitialSuggestions()" 
+             oninput="filterCharacters(this.value)">
+      <div id="search-results-box" class="search-dropdown"></div>
+    </div>
+    
+    <div id="nav-links"></div>
+  </nav>
+
+  <div class="main-layout">
+    <div>
+      <div class="card" id="post-box" style="display:none;">
+        <h3 style="margin-bottom: 12px; font-size:1.1rem; color:#fff;">New Post</h3>
+        <textarea id="post-content" placeholder="What's on your mind? Share a story..." rows="3"></textarea>
+        <button onclick="submitPost()">Share Post</button>
+      </div>
+      <div id="feed"></div>
+    </div>
+
+    <div class="side-panel">
+      <h4 style="color: #8e8e8e; margin-bottom: 15px; font-size: 0.9rem;">Suggested Profiles</h4>
+      <div id="suggestions-list"></div>
+    </div>
+  </div>
+
+  <script>
+    const currentUser = localStorage.getItem('social_user');
+    const links = document.getElementById('nav-links');
+    
+    if (currentUser) {
+      links.innerHTML = `<a href="profile.html?user=${currentUser}">@${currentUser}</a> <a href="#" onclick="logout()">Logout</a>`;
+      document.getElementById('post-box').style.display = 'block';
+    } else {
+      links.innerHTML = `<a href="auth.html">Login / Register</a>`;
+    }
+
+    function logout() { localStorage.removeItem('social_user'); window.location.reload(); }
+
+    // STEP 1: Show 10 dynamic random user recommendations immediately on click
+    function showInitialSuggestions() {
+      const dropdown = document.getElementById('search-results-box');
+      const currentInput = document.getElementById('search-bar').value;
+      
+      // If there is already character input, let the filter function handle it instead
+      if (currentInput.trim()) return;
+
+      fetch('/api/users/click-suggestions')
+        .then(res => res.json())
+        .then(users => {
+          renderDropdownItems(users, dropdown);
+        });
+    }
+
+    // STEP 2: Filter user records character-by-character as you type any letter
+    function filterCharacters(character) {
+      const dropdown = document.getElementById('search-results-box');
+      if (!character.trim()) {
+        showInitialSuggestions(); // Reset back to initial 10 if input cleared
+        return;
+      }
+
+      fetch(`/api/users/search?q=${encodeURIComponent(character)}`)
+        .then(res => res.json())
+        .then(users => {
+          renderDropdownItems(users, dropdown);
+        });
+    }
+
+    // Helper to print results cleanly into dropdown
+    function renderDropdownItems(users, container) {
+      if(users.length === 0) {
+        container.innerHTML = `<div class="search-item" style="color:#8e8e8e; text-align:center;">No match found</div>`;
+      } else {
+        container.innerHTML = users.map(u => `
+          <div class="search-item" onclick="window.location.href='profile.html?user=${u.username}'">
+            <div class="avatar" style="width:28px; height:28px;"></div>
+            <div>
+              <div style="font-weight:600; color:#fff;">${u.username}</div>
+              <div style="font-size:0.75rem; color:#8e8e8e;">${u.bio}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+      container.style.display = 'block';
+    }
+
+    // STEP 3: Timeline loader displaying personalized tracking streams
+    function loadFeed() {
+      const url = currentUser ? `/api/posts?user=${currentUser}` : '/api/posts';
+      fetch(url)
+        .then(res => res.json())
+        .then(posts => {
+          const feedContainer = document.getElementById('feed');
+          if(posts.length === 0) {
+            feedContainer.innerHTML = `
+              <div class="card" style="text-align:center; color:#8e8e8e; padding:30px;">
+                <h3>Your feed is empty!</h3><br>
+                <p>Click on the search bar or use the sidebar to follow users like <strong>Harry, Ironman, Luffy, or Yoda</strong> to see their posts pop up here live.</p>
+              </div>`;
+            return;
+          }
+
+          feedContainer.innerHTML = posts.map(p => `
+            <div class="card">
+              <div class="meta">
+                <div class="avatar"></div>
+                <a href="profile.html?user=${p.username}">${p.username}</a>
+              </div>
+              <p style="font-size:0.95rem; margin: 12px 0; color:#efefef; line-height:1.5;">${p.content}</p>
+              
+              <div style="margin-bottom:12px;">
+                <button class="${p.userHasLiked ? '' : 'alt'}" style="padding: 6px 14px;" onclick="likePost(${p.id})">
+                  ${p.userHasLiked ? '❤️ Liked' : '🤍 Like'} (${p.likes})
+                </button>
+              </div>
+              
+              <div class="comment-section">
+                ${p.comments.map(c => `<div class="comment"><strong>${c.username}</strong>${c.content}</div>`).join('')}
+                ${currentUser ? `
+                  <div style="display:flex; gap:10px; margin-top:12px;">
+                    <input type="text" id="c-input-${p.id}" placeholder="Add a comment..." style="margin:0; padding:8px; font-size:0.85rem;">
+                    <button onclick="submitComment(${p.id})" style="padding: 0 14px; font-size:0.85rem;">Post</button>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `).join('');
+        });
+    }
+
+    function loadSidebar() {
+      fetch('/api/users/sidebar')
+        .then(res => res.json())
+        .then(users => {
+          const filtered = users.filter(u => u.username !== currentUser);
+          document.getElementById('suggestions-list').innerHTML = filtered.map(u => `
+            <div class="user-row">
+              <div class="user-info">
+                <div class="avatar" style="width:32px; height:32px;"></div>
+                <div>
+                  <span onclick="window.location.href='profile.html?user=${u.username}'">${u.username}</span>
+                  <p>${u.bio}</p>
+                </div>
+              </div>
+              <a href="profile.html?user=${u.username}" class="follow-action-link">View</a>
+            </div>
+          `).join('');
+        });
+    }
+
+    function submitPost() {
+      const content = document.getElementById('post-content').value;
+      if (!content.trim()) return;
+      fetch('/api/posts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ username: currentUser, content })
+      }).then(() => { 
+        document.getElementById('post-content').value = ''; 
+        loadFeed();
+      });
+    }
+
+    function likePost(id) {
+      if (!currentUser) return alert('Please log in to like posts!');
+      fetch(`/api/posts/${id}/like`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ username: currentUser })
+      }).then(() => loadFeed());
+    }
+
+    function submitComment(postId) {
+      const content = document.getElementById(`c-input-${postId}`).value;
+      if (!content.trim()) return;
+      fetch('/api/comments', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ post_id: postId, username: currentUser, content })
+      }).then(() => loadFeed());
+    }
+
+    // Close the dropdown cleanly when you click away from search box
+    document.addEventListener('click', (e) => {
+      if(!e.target.closest('.search-container')) {
+        document.getElementById('search-results-box').style.display = 'none';
+      }
+    });
+
+    loadFeed();
+    loadSidebar();
+  </script>
+</body>
+</html>
